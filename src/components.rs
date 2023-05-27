@@ -7,6 +7,8 @@ pub use self::dc_voltage_source::DCVoltageSource;
 pub use self::ground::Ground;
 pub use self::node::Node;
 pub use self::resistor::Resistor;
+pub use self::Component::*;
+pub use self::Connection::*;
 
 /*
 * An id struct that has name, id, short_name, and long_name.
@@ -37,17 +39,59 @@ impl Identifer {
             long_name: id.to_string(),
         }
     }
+}
 
-    pub fn set_name(&mut self, name: String) {
-        self.name = name;
+#[derive(Debug, Clone, Copy)]
+pub enum Connection {
+    Connected(usize, ConnectionType), // A connection to a node current flows in and out
+    Disconnected(ConnectionType),     // A connection to nothing
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ConnectionType {
+    Annode,
+    Cathode,
+    GroundConnection,
+    // Gate,
+    // Drain,
+    // Source,
+
+    // This is not meant to be used but it serves as a reminder to always have
+    // a catch all for all match statements.
+    // This should enum never appear anywhere else in the code
+    UnimplementedConnectionType,
+}
+
+pub trait ConnectionTrait {
+    fn get_id(&self) -> usize;
+    fn get_connection_type(&self) -> ConnectionType;
+    fn make_disconnect(&mut self) -> Connection;
+}
+
+impl ConnectionTrait for Connection {
+    fn get_id(&self) -> usize {
+        match self {
+            Connected(id, _) => *id,
+            Disconnected(_) => panic!("Disconnected connection has no id"),
+        }
     }
 
-    pub fn set_short_name(&mut self, short_name: String) {
-        self.short_name = short_name;
+    fn get_connection_type(&self) -> ConnectionType {
+        match self {
+            Connected(_, connection_type) => connection_type.clone(),
+            Disconnected(connection_type) => connection_type.clone(),
+        }
     }
 
-    pub fn set_long_name(&mut self, long_name: String) {
-        self.long_name = long_name;
+    fn make_disconnect(&mut self) -> Connection {
+        match self {
+            Connected(_, connection_type) => {
+                let connection = Disconnected(connection_type.clone());
+                *self = connection.clone();
+                connection
+            }
+            Disconnected(_) => panic!("Connection already disconnected"),
+        }
     }
 }
 
@@ -60,50 +104,43 @@ pub enum Component {
     ResistorComponent(Resistor),
     DCVoltageSourceComponent(DCVoltageSource),
     GroundComponent(Ground),
+
+    // This is not meant to be used but it serves as a reminder to always have
+    // a catch all for all match statements.
+    // This should enum never appear anywhere else in the code
+    UnimplementedComponent,
 }
 
 pub trait ComponentTrait {
     fn get_id(&self) -> usize;
     fn get_name(&self) -> String;
-    fn get_input_node(&self) -> usize;
-    fn get_output_node(&self) -> usize;
-    fn is_input_node(&self, node: usize) -> bool {
-        self.get_input_node() == node
-    }
-    fn is_output_node(&self, node: usize) -> bool {
-        self.get_output_node() == node
-    }
+    fn connect(&mut self, node: usize, connection_type: ConnectionType);
 }
 
 impl ComponentTrait for Component {
     fn get_id(&self) -> usize {
         match self {
-            Component::ResistorComponent(resistor) => resistor.get_id(),
-            Component::DCVoltageSourceComponent(dc_vs) => dc_vs.get_id(),
-            Component::GroundComponent(ground) => ground.get_id(),
+            ResistorComponent(resistor) => resistor.get_id(),
+            DCVoltageSourceComponent(dc_vs) => dc_vs.get_id(),
+            GroundComponent(ground) => ground.get_id(),
+            unimplemented => panic!("get_id not implemented for {:?}", unimplemented),
         }
     }
     fn get_name(&self) -> String {
         match self {
-            Component::ResistorComponent(resistor) => resistor.identifer.name.clone(),
-            Component::DCVoltageSourceComponent(dc_vs) => dc_vs.identifer.name.clone(),
-            Component::GroundComponent(ground) => ground.identifer.name.clone(),
+            ResistorComponent(resistor) => resistor.identifer.name.clone(),
+            DCVoltageSourceComponent(dc_vs) => dc_vs.identifer.name.clone(),
+            GroundComponent(ground) => ground.identifer.name.clone(),
+            unimplemented => panic!("get_name not implemented for {:?}", unimplemented),
         }
     }
-    fn get_input_node(&self) -> usize {
-        // input == annode
+    fn connect(&mut self, node: usize, connection_type: ConnectionType) {
+        let connection = Connection::Connected(node, connection_type);
         match self {
-            Component::ResistorComponent(resistor) => resistor.node1,
-            Component::DCVoltageSourceComponent(dc_vs) => dc_vs.annode,
-            Component::GroundComponent(ground) => ground.node,
-        }
-    }
-    fn get_output_node(&self) -> usize {
-        // output == cathode
-        match self {
-            Component::ResistorComponent(resistor) => resistor.node2,
-            Component::DCVoltageSourceComponent(dc_vs) => dc_vs.cathode,
-            Component::GroundComponent(ground) => ground.node,
+            ResistorComponent(resistor) => resistor.connect(&connection),
+            DCVoltageSourceComponent(dc_vs) => dc_vs.connect(&connection),
+            GroundComponent(ground) => ground.connect(&connection),
+            unimplemented => panic!("connect not implemented for {:?}", unimplemented),
         }
     }
 }

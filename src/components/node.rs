@@ -1,15 +1,25 @@
-use super::{Component, Identifer};
+use super::{Connection, ConnectionType, Identifer};
 /*
 * This struct represents a node in a circuit. NOTE: a not is NOT a component.
 * It contains the nodes id, potential, connections to and from the node, it can be locked or unlocked.
 */
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Node {
     pub identifer: Identifer,
     pub potential: f64,
     pub locked: bool,
-    pub connections: Vec<usize>,
+    pub connections: Vec<Connection>,
+}
+
+impl std::fmt::Debug for Node {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Node ({}) locked: {} potential: {} connections: {:?}",
+            self.identifer.id, self.locked, self.potential, self.connections
+        )
+    }
 }
 
 impl Node {
@@ -38,13 +48,8 @@ impl Node {
         self.locked = true;
     }
 
-    pub fn add_connection(&mut self, component: Component) {
-        // unwarap the component and push its id to the connections vector
-        let component_id = match component {
-            Component::ResistorComponent(resistor) => resistor.identifer.id,
-            Component::DCVoltageSourceComponent(dc_vs) => dc_vs.identifer.id,
-            Component::GroundComponent(ground) => ground.identifer.id,
-        };
-        self.connections.push(component_id);
+    pub fn add_connection(&mut self, comp_id: usize, con_type: ConnectionType) {
+        let connection = Connection::Connected(comp_id, con_type);
+        self.connections.push(connection);
     }
 }

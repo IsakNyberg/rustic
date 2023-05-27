@@ -1,12 +1,13 @@
 use crate::circuit;
 use crate::components;
 use crate::components::Component;
-use crate::components::ComponentTrait;
+use crate::components::ConnectionTrait;
 use crate::components::Node;
 use circuit::Circuit;
 use components::Component::*;
 
 use nalgebra::LU;
+//use nalgebra::SVD;
 use nalgebra::{DMatrix, DVector};
 
 /*
@@ -64,78 +65,14 @@ impl NodeVoltageMethod {
         // M * x = b
 
         // do all current equations it is always that the sum of current of a component is 0 (KCL)
-        for component in self.components() {
-            println!("component: {:?}", component);
-            let (terms1, terms2) = match component {
-                ResistorComponent(resistor) => {
-                    // V1-V2 = IR
-                    let mut terms = Vec::<(usize, f64)>::new();
-                    terms.push((resistor.node1, 1.0 / resistor.resistance));
-                    terms.push((resistor.node2, -1.0 / resistor.resistance));
-                    terms.push((num_nodes + resistor.get_id(), -1.0));
-                    (terms, vec![])
-                }
-                DCVoltageSourceComponent(dc_vc) => {
-                    // sum of all current into annode and cathode is 0
-                    // this one case is special because it has a 2 equations
-                    // first do the annode where current flows into the VS
-                    let mut terms1 = Vec::<(usize, f64)>::new();
-                    let annode = &self.get_node(dc_vc.annode);
-                    for component_id in annode.connections.iter() {
-                        // everything whose input is the annode is takes away from the current
-                        if self
-                            .get_component(*component_id)
-                            .is_input_node(annode.get_id())
-                        {
-                            terms1.push((num_nodes + component_id, -1.0));
-                        } else {
-                            terms1.push((num_nodes + component_id, 1.0));
-                        }
-                        terms1.push((num_nodes + component_id, 1.0));
-                    }
-                    // then do the cathode where current flows out of the VS
-                    let mut terms2 = Vec::<(usize, f64)>::new();
-                    let cathode = &self.get_node(dc_vc.cathode);
-                    for component_id in cathode.connections.iter() {
-                        // everything whose input is the cathode is takes away from the current
-                        if self
-                            .get_component(*component_id)
-                            .is_input_node(cathode.get_id())
-                        {
-                            terms2.push((num_nodes + component_id, -1.0));
-                        } else {
-                            terms2.push((num_nodes + component_id, 1.0));
-                        }
-                        terms2.push((num_nodes + component_id, 1.0));
-                    }
-                    (terms1, terms2)
-                }
-                GroundComponent(gnd) => {
-                    // Current into ground should be 0
-                    //let mut terms = Vec::<(usize, f64)>::new();
-                    //terms.push((num_nodes + gnd.get_id(), 1.0));
-                    (vec![], vec![])
-                }
-            };
-
-            let mut equation1: Vec<f64> = vec![0.0; num_unknowns];
-            let mut equation2: Vec<f64> = vec![0.0; num_unknowns];
-
-            if terms1.len() > 0 {
-                for (id, value) in terms1 {
-                    equation1[id] = value;
-                }
-                m.push(equation1);
-                b.push(0.0);
+        for node_id in 0..self.circuit.nodes.len() {
+            let mut equation: Vec<f64> = vec![0.0; num_unknowns];
+            let node_terms = self.circuit.get_currents_at_node(node_id);
+            for (id, value) in node_terms {
+                equation[id] = value;
             }
-
-            if terms2.len() > 0 {
-                for (id, value) in terms2 {
-                    equation2[id] = value;
-                }
-                m.push(equation2);
-                b.push(0.0);
-            }
+            m.push(equation);
+            b.push(0.0);
         }
 
         // do all voltage equation voltage is always the difference between two nodes (KVL)
@@ -144,24 +81,31 @@ impl NodeVoltageMethod {
             println!("component: {:?}", component);
             let b_value;
             let terms = match component {
-                ResistorComponent(_) => {
-                    continue;
+                ResistorComponent(resistor) => {
+                    // V1-V2 = IR
+                    let mut terms = Vec::<(usize, f64)>::new();
+                    terms.push((resistor.node1.get_id(), 1.0 / resistor.resistance));
+                    terms.push((resistor.node2.get_id(), -1.0 / resistor.resistance));
+                    terms.push((num_nodes + resistor.get_id(), -1.0));
+                    b_value = 0.0;
+                    terms
                 }
-                DCVoltageSourceComponent(dc_vc) => {
+                DCVoltageSourceComponent(dc_vs) => {
                     // V1-V2 = V
                     let mut terms = Vec::<(usize, f64)>::new();
-                    terms.push((dc_vc.annode, 1.0));
-                    terms.push((dc_vc.cathode, -1.0));
-                    b_value = dc_vc.voltage;
+                    terms.push((dc_vs.annode.get_id(), 1.0));
+                    terms.push((dc_vs.cathode.get_id(), -1.0));
+                    b_value = dc_vs.voltage;
                     terms
                 }
                 GroundComponent(gnd) => {
                     // V = 0
                     let mut terms = Vec::<(usize, f64)>::new();
-                    terms.push((gnd.node, 1.0));
+                    terms.push((gnd.node.get_id(), 1.0));
                     b_value = 0.0;
                     terms
                 }
+                unimplemented => panic!("Unimplemented component {:?}", unimplemented),
             };
 
             for (id, value) in terms {
@@ -182,11 +126,17 @@ impl NodeVoltageMethod {
         }
         let a = DMatrix::from_row_slice(rows, cols, &a_vec);
         let b = DVector::from_vec(b);
+        println!("A: {:?}", a);
+        println!("b: {:?}", b);
 
         // solve the matrix
+        //let svd = SVD::new(a, true, true);
         let lu = LU::new(a);
+        println!("LU: {:?}", lu);
+
+        // let x = svd.solve(&b, 1e-9).expect("Failed to solve");
         let x = lu.solve(&b).expect("Failed to solve the linear system");
-        println!("{:?}", x);
+        println!("x: {:?}", x);
 
         // set the potentials of the nodes
         for mut node in self.circuit.nodes.iter_mut() {
