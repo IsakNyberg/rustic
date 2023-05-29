@@ -1,4 +1,9 @@
-use super::{Connection, Connection::*, ConnectionType::*, Identifer};
+use super::{
+    Connection,
+    Connection::*,
+    ConnectionType::{self, *},
+    Identifer,
+};
 
 /*
 * This struct represents a DC voltage source in a circuit.
@@ -46,6 +51,14 @@ impl DCVoltageSource {
                 _ => panic!("DC VC can only be disconnected to an Annode or Cathode"),
             },
         };
+    }
+
+    pub fn get_connection(&self, connection_type: ConnectionType) -> Connection {
+        match connection_type {
+            Annode => self.annode.clone(),
+            Cathode => self.cathode.clone(),
+            _ => panic!("DC VC only has a Annode or Cathode"),
+        }
     }
 
     pub fn get_id(&self) -> usize {

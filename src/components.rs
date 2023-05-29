@@ -115,6 +115,7 @@ pub trait ComponentTrait {
     fn get_id(&self) -> usize;
     fn get_name(&self) -> String;
     fn connect(&mut self, node: usize, connection_type: ConnectionType);
+    fn get_connection(&self, connection_type: ConnectionType) -> Connection;
 }
 
 impl ComponentTrait for Component {
@@ -141,6 +142,15 @@ impl ComponentTrait for Component {
             DCVoltageSourceComponent(dc_vs) => dc_vs.connect(&connection),
             GroundComponent(ground) => ground.connect(&connection),
             unimplemented => panic!("connect not implemented for {:?}", unimplemented),
+        }
+    }
+
+    fn get_connection(&self, connection_type: ConnectionType) -> Connection {
+        match self {
+            ResistorComponent(resistor) => resistor.get_connection(connection_type),
+            DCVoltageSourceComponent(dc_vs) => dc_vs.get_connection(connection_type),
+            GroundComponent(ground) => ground.get_connection(connection_type),
+            unimplemented => panic!("get_connection not implemented for {:?}", unimplemented),
         }
     }
 }

@@ -1,5 +1,6 @@
 use crate::components::Component;
 use crate::components::ComponentTrait;
+use crate::components::Connection::{Connected, Disconnected};
 use crate::components::ConnectionTrait;
 use crate::components::ConnectionType;
 use crate::components::ConnectionType::{Annode, Cathode, GroundConnection};
@@ -58,6 +59,45 @@ impl Circuit {
         for (comp_id, node_id, con_type) in args {
             self.connect_node(comp_id, node_id, con_type);
         }
+    }
+
+    pub fn connect_components(
+        &mut self,
+        args: Vec<((usize, ConnectionType), (usize, ConnectionType))>,
+    ) {
+        for (conn1, conn2) in args {
+            self.connect_component(conn1, conn2);
+        }
+    }
+
+    pub fn connect_component(
+        &mut self,
+        conn1: (usize, ConnectionType),
+        conn2: (usize, ConnectionType),
+    ) {
+        let (comp1_id, con_type1) = conn1;
+        let (comp2_id, con_type2) = conn2;
+        assert!(comp1_id < self.components.len());
+        assert!(comp2_id < self.components.len());
+        // see if either node is connected already
+        let node1_id = match self.components[comp1_id].get_connection(con_type1) {
+            Connected(id, _) => id,
+            Disconnected(_) => self.nodes.len(),
+        };
+        let node2_id = match self.components[comp2_id].get_connection(con_type2) {
+            Connected(id, _) => id,
+            Disconnected(_) => self.nodes.len(),
+        };
+        // See if both nodes are connected already, this means both are connected to a different node
+        if node1_id != node2_id && node1_id != self.nodes.len() && node2_id != self.nodes.len() {
+            panic!("Both components are already connected to different nodes");
+        }
+        // the new node is the min number of both nodes, this means that if one of the nodes is not connected yet
+        // the new node will be the id of the other node. If neither is connected a new node will be created to connect the two
+        let node_id = std::cmp::min(node1_id, node2_id);
+
+        self.connect_node(comp1_id, node_id, con_type1);
+        self.connect_node(comp2_id, node_id, con_type2);
     }
 
     pub fn connect_node(&mut self, comp_id: usize, node_id: usize, con_type: ConnectionType) {

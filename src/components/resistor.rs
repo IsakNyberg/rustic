@@ -1,4 +1,9 @@
-use super::{Connection, Connection::*, ConnectionType::*, Identifer};
+use super::{
+    Connection,
+    Connection::*,
+    ConnectionType::{self, *},
+    Identifer,
+};
 
 /*
 * This struct represents a resistor in a circuit
@@ -46,6 +51,14 @@ impl Resistor {
                 _ => panic!("Resistor can only be disconnected to an Annode or Cathode"),
             },
         };
+    }
+
+    pub fn get_connection(&self, connection_type: ConnectionType) -> Connection {
+        match connection_type {
+            Annode => self.node1.clone(),
+            Cathode => self.node2.clone(),
+            _ => panic!("Resistor only has a Annode or Cathode"),
+        }
     }
 
     pub fn get_id(&self) -> usize {

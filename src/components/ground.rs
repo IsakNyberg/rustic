@@ -1,4 +1,9 @@
-use super::{Connection, Connection::*, ConnectionType::*, Identifer};
+use super::{
+    Connection,
+    Connection::*,
+    ConnectionType::{self, *},
+    Identifer,
+};
 /*
 * This struct is a ground node in a circuit it has a potential and has a single NodeConnection.
 */
@@ -33,6 +38,13 @@ impl Ground {
                 _ => panic!("Ground can only be disconnected to a GroundConnection"),
             },
         };
+    }
+
+    pub fn get_connection(&self, connection_type: ConnectionType) -> Connection {
+        match connection_type {
+            GroundConnection => self.node.clone(),
+            _ => panic!("Ground only has a GroundConnection"),
+        }
     }
 
     pub fn get_id(&self) -> usize {

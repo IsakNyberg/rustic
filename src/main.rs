@@ -30,17 +30,14 @@ fn main() {
 
     let mut circuit = Circuit::from_components("test".to_string(), 0, components);
 
-    // (component_id, node_id, connection_type)
-    let con_args = vec![
-        (0, 0, Annode),
-        (1, 0, Cathode),
-        (1, 1, Annode),
-        (2, 1, Cathode),
-        (2, 2, Annode),
-        (0, 2, Cathode),
-        (3, 1, GroundConnection),
+    // ((component_id, connection_type) (component_id, connection_type))
+    let connection_pairs = vec![
+        ((0, Annode), (1, Cathode)),
+        ((1, Annode), (2, Cathode)),
+        ((2, Cathode), (3, GroundConnection)),
+        ((2, Annode), (0, Cathode)),
     ];
-    circuit.connect_nodes(con_args);
+    circuit.connect_components(connection_pairs);
 
     let mut nvm = NodeVoltageMethod::new(circuit);
     nvm.solve().expect("Failed to solve circuit");
