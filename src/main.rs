@@ -2,12 +2,12 @@
 
 mod circuit;
 mod components;
-mod node_voltage_method;
+mod solver;
 
 use circuit::Circuit;
 use components::ConnectionType::{Annode, Cathode, GroundConnection};
 use components::*;
-use node_voltage_method::NodeVoltageMethod;
+use solver::Solver;
 
 fn new_identifer(id: &mut usize) -> Identifer {
     let res = components::Identifer::from_id(*id);
@@ -22,7 +22,7 @@ fn main() {
     let component_id = &mut a;
 
     let components = vec![
-        DCVoltageSourceComponent(DCVoltageSource::new(new_identifer(component_id), 5.0)),
+        DCCurrentSourceComponent(DCCurrentSource::new(new_identifer(component_id), 5.0)),
         ResistorComponent(Resistor::new(new_identifer(component_id), 1000.0)),
         ResistorComponent(Resistor::new(new_identifer(component_id), 1000.0)),
         GroundComponent(Ground::new(new_identifer(component_id))),
@@ -39,7 +39,7 @@ fn main() {
     ];
     circuit.connect_components(connection_pairs);
 
-    let mut nvm = NodeVoltageMethod::new(circuit);
+    let mut nvm = Solver::new(circuit);
     nvm.solve().expect("Failed to solve circuit");
 
     for i in 0..nvm.components().len() {

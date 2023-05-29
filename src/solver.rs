@@ -14,7 +14,7 @@ use nalgebra::{DMatrix, DVector};
 * this struct contains the nesseday information to solve a circuit using the node voltage method.
 */
 #[derive(Debug, Clone)]
-pub struct NodeVoltageMethod {
+pub struct Solver {
     pub circuit: Circuit,
     pub is_solved: bool,
     pub potentials: Vec<f64>,
@@ -24,7 +24,7 @@ pub struct NodeVoltageMethod {
 /*
 * this impl block contains the methods to solve a circuit using the node voltage method.
 */
-impl NodeVoltageMethod {
+impl Solver {
     /*
      * this method creates a new node voltage method struct.
      */
@@ -103,6 +103,13 @@ impl NodeVoltageMethod {
                     let mut terms = Vec::<(usize, f64)>::new();
                     terms.push((gnd.node.get_id(), 1.0));
                     b_value = 0.0;
+                    terms
+                }
+                DCCurrentSourceComponent(dc_cs) => {
+                    // I = I
+                    let mut terms = Vec::<(usize, f64)>::new();
+                    terms.push((num_nodes + dc_cs.get_id(), 1.0));
+                    b_value = dc_cs.current;
                     terms
                 }
                 unimplemented => panic!("Unimplemented component {:?}", unimplemented),

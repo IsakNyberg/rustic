@@ -6,33 +6,33 @@ use super::{
 };
 
 /*
-* This struct represents a DC voltage source in a circuit.
-* It has an id, voltage, max_current, and annode and a cathode.
+* This struct represents a DC current source in a circuit.
+* It has an id, current, max_current, and annode and a cathode.
 */
 
 #[derive(Clone)]
-pub struct DCVoltageSource {
+pub struct DCCurrentSource {
     pub identifer: Identifer,
-    pub voltage: f64,
+    pub current: f64,
     pub annode: Connection,
     pub cathode: Connection,
 }
 
-impl std::fmt::Debug for DCVoltageSource {
+impl std::fmt::Debug for DCCurrentSource {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "DCVS ({}) V:{}V Annode: {:?} Cathode: {:?}",
-            self.identifer.id, self.voltage, self.annode, self.cathode
+            "DCCS ({}) I:{}A Annode: {:?} Cathode: {:?}",
+            self.identifer.id, self.current, self.annode, self.cathode
         )
     }
 }
 
-impl DCVoltageSource {
-    pub fn new(identifer: Identifer, voltage: f64) -> DCVoltageSource {
-        DCVoltageSource {
+impl DCCurrentSource {
+    pub fn new(identifer: Identifer, current: f64) -> DCCurrentSource {
+        DCCurrentSource {
             identifer,
-            voltage,
+            current,
             annode: Disconnected(Annode),
             cathode: Disconnected(Cathode),
         }
@@ -43,12 +43,12 @@ impl DCVoltageSource {
             Connected(nodeid, connection_type) => match connection_type {
                 Annode => self.annode = Connected(nodeid, Annode),
                 Cathode => self.cathode = Connected(nodeid, Cathode),
-                _ => panic!("DC VS can only be connected to an Annode or Cathode"),
+                _ => panic!("DC CS can only be connected to an Annode or Cathode"),
             },
             Disconnected(con_type) => match con_type {
                 Annode => self.annode = Disconnected(Annode),
                 Cathode => self.cathode = Disconnected(Cathode),
-                _ => panic!("DC VS can only be disconnected to an Annode or Cathode"),
+                _ => panic!("DC CS can only be disconnected to an Annode or Cathode"),
             },
         };
     }
@@ -57,7 +57,7 @@ impl DCVoltageSource {
         match connection_type {
             Annode => self.annode.clone(),
             Cathode => self.cathode.clone(),
-            _ => panic!("DC VS only has a Annode or Cathode"),
+            _ => panic!("DC CS only has a Annode or Cathode"),
         }
     }
 

@@ -1,8 +1,10 @@
+mod dc_current_source;
 mod dc_voltage_source;
 mod ground;
 mod node;
 mod resistor;
 
+pub use self::dc_current_source::DCCurrentSource;
 pub use self::dc_voltage_source::DCVoltageSource;
 pub use self::ground::Ground;
 pub use self::node::Node;
@@ -104,6 +106,7 @@ pub enum Component {
     ResistorComponent(Resistor),
     DCVoltageSourceComponent(DCVoltageSource),
     GroundComponent(Ground),
+    DCCurrentSourceComponent(DCCurrentSource),
 
     // This is not meant to be used but it serves as a reminder to always have
     // a catch all for all match statements.
@@ -124,6 +127,7 @@ impl ComponentTrait for Component {
             ResistorComponent(resistor) => resistor.get_id(),
             DCVoltageSourceComponent(dc_vs) => dc_vs.get_id(),
             GroundComponent(ground) => ground.get_id(),
+            DCCurrentSourceComponent(dc_cs) => dc_cs.get_id(),
             unimplemented => panic!("get_id not implemented for {:?}", unimplemented),
         }
     }
@@ -132,6 +136,7 @@ impl ComponentTrait for Component {
             ResistorComponent(resistor) => resistor.identifer.name.clone(),
             DCVoltageSourceComponent(dc_vs) => dc_vs.identifer.name.clone(),
             GroundComponent(ground) => ground.identifer.name.clone(),
+            DCCurrentSourceComponent(dc_cs) => dc_cs.identifer.name.clone(),
             unimplemented => panic!("get_name not implemented for {:?}", unimplemented),
         }
     }
@@ -141,6 +146,7 @@ impl ComponentTrait for Component {
             ResistorComponent(resistor) => resistor.connect(&connection),
             DCVoltageSourceComponent(dc_vs) => dc_vs.connect(&connection),
             GroundComponent(ground) => ground.connect(&connection),
+            DCCurrentSourceComponent(dc_cs) => dc_cs.connect(&connection),
             unimplemented => panic!("connect not implemented for {:?}", unimplemented),
         }
     }
@@ -150,6 +156,7 @@ impl ComponentTrait for Component {
             ResistorComponent(resistor) => resistor.get_connection(connection_type),
             DCVoltageSourceComponent(dc_vs) => dc_vs.get_connection(connection_type),
             GroundComponent(ground) => ground.get_connection(connection_type),
+            DCCurrentSourceComponent(dc_cs) => dc_cs.get_connection(connection_type),
             unimplemented => panic!("get_connection not implemented for {:?}", unimplemented),
         }
     }
