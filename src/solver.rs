@@ -1,7 +1,6 @@
 use crate::circuit;
 use crate::components;
 use crate::components::Component;
-use crate::components::ConnectionTrait;
 use crate::components::Node;
 use circuit::Circuit;
 use components::Component::*;
@@ -78,14 +77,16 @@ impl Solver {
         // do all voltage equation voltage is always the difference between two nodes (KVL)
         for component in self.components() {
             let mut equation: Vec<f64> = vec![0.0; num_unknowns];
-            println!("component: {:?}", component);
+            println!("component: {component:?}");
             let b_value;
             let terms = match component {
                 ResistorComponent(resistor) => {
                     // V1-V2 = IR
                     let mut terms = Vec::<(usize, f64)>::new();
-                    terms.push((resistor.node1.get_id(), 1.0 / resistor.resistance));
-                    terms.push((resistor.node2.get_id(), -1.0 / resistor.resistance));
+                    let recip_resistance = resistor.resistance.recip();
+                    let term1 = self.circuit.get_potential_index(resistor.node1.get_id());
+                    terms.push((term1, recip_resistance));
+                    terms.push((resistor.node2.get_id(), -recip_resistance));
                     terms.push((num_nodes + resistor.get_id(), -1.0));
                     b_value = 0.0;
                     terms
@@ -112,7 +113,18 @@ impl Solver {
                     b_value = dc_cs.current;
                     terms
                 }
-                unimplemented => panic!("Unimplemented component {:?}", unimplemented),
+                SwitchSPDTComponent(switch) => {
+                    // V_in = V_out
+                    let mut terms = Vec::new();
+                    let input = switch.get_input_id();
+                    let output = switch.get_output_id();
+
+                    terms.push((input, 1.0));
+                    terms.push((output, -1.0));
+                    b_value = 0.0;
+                    terms
+                }
+                _ => panic!("Unimplemented component {self:?}"),
             };
 
             for (id, value) in terms {
@@ -133,17 +145,17 @@ impl Solver {
         }
         let a = DMatrix::from_row_slice(rows, cols, &a_vec);
         let b = DVector::from_vec(b);
-        println!("A: {:?}", a);
-        println!("b: {:?}", b);
+        println!("A: {a:?}");
+        println!("b: {b:?}");
 
         // solve the matrix
         //let svd = SVD::new(a, true, true);
         let lu = LU::new(a);
-        println!("LU: {:?}", lu);
+        println!("LU: {lu:?}");
 
         // let x = svd.solve(&b, 1e-9).expect("Failed to solve");
         let x = lu.solve(&b).expect("Failed to solve the linear system");
-        println!("x: {:?}", x);
+        println!("x: {x:?}");
 
         // set the potentials of the nodes
         for mut node in self.circuit.nodes.iter_mut() {

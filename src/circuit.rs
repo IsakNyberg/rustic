@@ -1,9 +1,9 @@
+use std::collections::HashMap;
+
 use crate::components::Component;
-use crate::components::ComponentTrait;
 use crate::components::Connection::{Connected, Disconnected};
-use crate::components::ConnectionTrait;
 use crate::components::ConnectionType;
-use crate::components::ConnectionType::{Anode, Cathode, GroundConnection};
+use crate::components::ConnectionType::*;
 use crate::components::Identifer;
 use crate::components::Node;
 
@@ -17,6 +17,7 @@ pub struct Circuit {
     pub components: Vec<Component>,
     pub nodes: Vec<Node>,
     pub locked: bool,
+    pub comp_to_cur_index_map: HashMap<(usize, ConnectionType), usize>,
 }
 
 impl Circuit {
@@ -27,6 +28,7 @@ impl Circuit {
             components: Vec::new(),
             nodes: Vec::new(),
             locked: false,
+            comp_to_cur_index_map: HashMap::new(),
         }
     }
 
@@ -37,6 +39,7 @@ impl Circuit {
             components,
             nodes: Vec::new(),
             locked: false,
+            comp_to_cur_index_map: HashMap::new(),
         }
     }
 
@@ -52,6 +55,7 @@ impl Circuit {
             components,
             nodes,
             locked: false,
+            comp_to_cur_index_map: HashMap::new(),
         }
     }
 
@@ -59,6 +63,15 @@ impl Circuit {
         for (comp_id, node_id, con_type) in args {
             self.connect_node(comp_id, node_id, con_type);
         }
+    }
+
+    pub fn get_potential_index(&self, node_id: usize) -> usize {
+        // In the futire this logic may be more complicated and thus this function exists
+        node_id
+    }
+
+    pub fn get_current_index(&self, component: &Component, conn_type: ConnectionType) -> usize {
+        self.comp_to_cur_index_map[&(component.get_id(), conn_type)]
     }
 
     pub fn connect_components(
@@ -126,10 +139,13 @@ impl Circuit {
             let component_id = (*connection).get_id();
             let con_type = connection.get_connection_type();
             match con_type {
-                Anode => terms.push((num_nodes + component_id, 1.0)),
-                Cathode => terms.push((num_nodes + component_id, -1.0)),
+                Anode => terms.push((num_nodes + component_id, -1.0)),
+                Cathode => terms.push((num_nodes + component_id, 1.0)),
                 GroundConnection => terms.push((num_nodes + component_id, -1.0)),
-                conn_type => panic!("Unimplemented connection type {:?}", conn_type),
+                Input1 => terms.push((num_nodes + component_id, -1.0)),
+                Output1 => terms.push((num_nodes + component_id, 1.0)),
+                Output2 => terms.push((num_nodes + component_id, 1.0)),
+                conn_type => panic!("Unimplemented connection type {conn_type:?}"),
             }
         }
         terms
@@ -148,6 +164,30 @@ impl Circuit {
     }
 
     pub fn lock(&mut self) {
+        assert!(!self.locked, "Attempted to lock a locked circuit");
         self.locked = true;
+
+        self.calc_current_index_map();
+    }
+
+    pub fn calc_current_index_map(&mut self) {
+        assert!(self.locked);
+
+        let len = self
+            .components
+            .iter()
+            .map(|c| c.get_currents().len())
+            .sum::<usize>();
+        let mut res = HashMap::with_capacity(len);
+
+        let mut top_index = self.nodes.len(); // Since the first n indexes in M are the nodes and node currents
+        for comp in self.components.iter() {
+            for con_type in comp.get_currents() {
+                res.insert((comp.get_id(), con_type.clone()), top_index);
+                top_index += 1;
+            }
+        }
+
+        self.comp_to_cur_index_map = res;
     }
 }

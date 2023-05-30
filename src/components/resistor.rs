@@ -29,25 +29,24 @@ impl std::fmt::Debug for Resistor {
 
 impl Resistor {
     pub fn new(identifer: Identifer, resistance: f64) -> Self {
-        let res = Self {
+        Self {
             identifer,
             resistance,
             node1: Disconnected(Anode),
             node2: Disconnected(Cathode),
-        };
-        res
+        }
     }
 
     pub fn connect(&mut self, connection: &Connection) {
         match *connection {
-            Connected(nodeid, connection_type) => match connection_type {
-                Anode => self.node1 = Connected(nodeid, Anode),
-                Cathode => self.node2 = Connected(nodeid, Cathode),
+            Connected(_, con_type) => match con_type {
+                Anode => self.node1 = *connection,
+                Cathode => self.node2 = *connection,
                 _ => panic!("Resistor can only be connected to an Anode or Cathode"),
             },
             Disconnected(con_type) => match con_type {
-                Anode => self.node1 = Disconnected(Anode),
-                Cathode => self.node2 = Disconnected(Cathode),
+                Anode => self.node1 = *connection,
+                Cathode => self.node2 = *connection,
                 _ => panic!("Resistor can only be disconnected to an Anode or Cathode"),
             },
         };

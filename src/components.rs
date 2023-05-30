@@ -3,12 +3,14 @@ mod dc_voltage_source;
 mod ground;
 mod node;
 mod resistor;
+mod switch_spdt;
 
 pub use self::dc_current_source::DCCurrentSource;
 pub use self::dc_voltage_source::DCVoltageSource;
 pub use self::ground::Ground;
 pub use self::node::Node;
 pub use self::resistor::Resistor;
+pub use self::switch_spdt::SwitchSPDT;
 pub use self::Component::*;
 pub use self::Connection::*;
 
@@ -49,11 +51,14 @@ pub enum Connection {
     Disconnected(ConnectionType),     // A connection to nothing
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ConnectionType {
     Anode,
     Cathode,
     GroundConnection,
+    Input1,
+    Output1,
+    Output2,
     // Gate,
     // Drain,
     // Source,
@@ -64,28 +69,22 @@ pub enum ConnectionType {
     UnimplementedConnectionType,
 }
 
-pub trait ConnectionTrait {
-    fn get_id(&self) -> usize;
-    fn get_connection_type(&self) -> ConnectionType;
-    fn make_disconnect(&mut self) -> Connection;
-}
-
-impl ConnectionTrait for Connection {
-    fn get_id(&self) -> usize {
+impl Connection {
+    pub fn get_id(&self) -> usize {
         match self {
             Connected(id, _) => *id,
             Disconnected(_) => panic!("Disconnected connection has no id"),
         }
     }
 
-    fn get_connection_type(&self) -> ConnectionType {
+    pub fn get_connection_type(&self) -> ConnectionType {
         match self {
             Connected(_, connection_type) => connection_type.clone(),
             Disconnected(connection_type) => connection_type.clone(),
         }
     }
 
-    fn make_disconnect(&mut self) -> Connection {
+    pub fn make_disconnect(&mut self) -> Connection {
         match self {
             Connected(_, connection_type) => {
                 let connection = Disconnected(connection_type.clone());
@@ -107,6 +106,7 @@ pub enum Component {
     DCVoltageSourceComponent(DCVoltageSource),
     GroundComponent(Ground),
     DCCurrentSourceComponent(DCCurrentSource),
+    SwitchSPDTComponent(SwitchSPDT),
 
     // This is not meant to be used but it serves as a reminder to always have
     // a catch all for all match statements.
@@ -114,50 +114,69 @@ pub enum Component {
     UnimplementedComponent,
 }
 
-pub trait ComponentTrait {
-    fn get_id(&self) -> usize;
-    fn get_name(&self) -> String;
-    fn connect(&mut self, node: usize, connection_type: ConnectionType);
-    fn get_connection(&self, connection_type: ConnectionType) -> Connection;
-}
+// pub trait ComponentTrait {
+//     fn get_id(&self) -> usize;
+//     fn get_name(&self) -> String;
+//     fn connect(&mut self, node: usize, connection_type: ConnectionType);
+//     fn get_connection(&self, connection_type: ConnectionType) -> Connection;
+// }
 
-impl ComponentTrait for Component {
-    fn get_id(&self) -> usize {
+impl Component {
+    pub const fn get_currents(&self) -> usize {
+        // &'static [ConnectionType] {
+        // currents
+        // "rank" in the matrix required to calculate component
+        // use ConnectionType::*;
+        match self {
+            ResistorComponent(_) => 1,        // &[Cathode],
+            DCVoltageSourceComponent(_) => 1, // &[Cathode],
+            GroundComponent(_) => 1,          // &[Cathode],
+            DCCurrentSourceComponent(_) => 1, // &[Cathode],
+            SwitchSPDTComponent(_) => 2,      // &[Output1, Output2],
+            _ => 0,                           // &[],
+        }
+    }
+
+    pub fn get_id(&self) -> usize {
         match self {
             ResistorComponent(resistor) => resistor.get_id(),
             DCVoltageSourceComponent(dc_vs) => dc_vs.get_id(),
             GroundComponent(ground) => ground.get_id(),
             DCCurrentSourceComponent(dc_cs) => dc_cs.get_id(),
-            unimplemented => panic!("get_id not implemented for {:?}", unimplemented),
+            SwitchSPDTComponent(switch) => switch.get_id(),
+            _ => panic!("get_id not implemented for {self:?}"),
         }
     }
-    fn get_name(&self) -> String {
+    pub fn get_name(&self) -> String {
         match self {
             ResistorComponent(resistor) => resistor.identifer.name.clone(),
             DCVoltageSourceComponent(dc_vs) => dc_vs.identifer.name.clone(),
             GroundComponent(ground) => ground.identifer.name.clone(),
             DCCurrentSourceComponent(dc_cs) => dc_cs.identifer.name.clone(),
-            unimplemented => panic!("get_name not implemented for {:?}", unimplemented),
+            SwitchSPDTComponent(switch) => switch.identifer.name.clone(),
+            _ => panic!("get_name not implemented for {self:?}"),
         }
     }
-    fn connect(&mut self, node: usize, connection_type: ConnectionType) {
+    pub fn connect(&mut self, node: usize, connection_type: ConnectionType) {
         let connection = Connection::Connected(node, connection_type);
         match self {
             ResistorComponent(resistor) => resistor.connect(&connection),
             DCVoltageSourceComponent(dc_vs) => dc_vs.connect(&connection),
             GroundComponent(ground) => ground.connect(&connection),
             DCCurrentSourceComponent(dc_cs) => dc_cs.connect(&connection),
-            unimplemented => panic!("connect not implemented for {:?}", unimplemented),
+            SwitchSPDTComponent(switch) => switch.connect(&connection),
+            _ => panic!("connect not implemented for {self:?}"),
         }
     }
 
-    fn get_connection(&self, connection_type: ConnectionType) -> Connection {
+    pub fn get_connection(&self, connection_type: ConnectionType) -> Connection {
         match self {
             ResistorComponent(resistor) => resistor.get_connection(connection_type),
             DCVoltageSourceComponent(dc_vs) => dc_vs.get_connection(connection_type),
             GroundComponent(ground) => ground.get_connection(connection_type),
             DCCurrentSourceComponent(dc_cs) => dc_cs.get_connection(connection_type),
-            unimplemented => panic!("get_connection not implemented for {:?}", unimplemented),
+            SwitchSPDTComponent(switch) => switch.get_connection(connection_type),
+            _ => panic!("get_connection not implemented for {self:?}"),
         }
     }
 }
