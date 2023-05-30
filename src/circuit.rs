@@ -17,7 +17,8 @@ pub struct Circuit {
     pub components: Vec<Component>,
     pub nodes: Vec<Node>,
     pub locked: bool,
-    pub comp_to_cur_index_map: HashMap<(usize, ConnectionType), usize>,
+    pub comp_to_cur_index_map: HashMap<usize, usize>,
+    pub total_size: usize,
 }
 
 impl Circuit {
@@ -29,6 +30,7 @@ impl Circuit {
             nodes: Vec::new(),
             locked: false,
             comp_to_cur_index_map: HashMap::new(),
+            total_size: 0,
         }
     }
 
@@ -40,6 +42,7 @@ impl Circuit {
             nodes: Vec::new(),
             locked: false,
             comp_to_cur_index_map: HashMap::new(),
+            total_size: 0,
         }
     }
 
@@ -56,6 +59,7 @@ impl Circuit {
             nodes,
             locked: false,
             comp_to_cur_index_map: HashMap::new(),
+            total_size: 0,
         }
     }
 
@@ -70,8 +74,8 @@ impl Circuit {
         node_id
     }
 
-    pub fn get_current_index(&self, component: &Component, conn_type: ConnectionType) -> usize {
-        self.comp_to_cur_index_map[&(component.get_id(), conn_type)]
+    pub fn get_current_index(&self, component: &Component) -> usize {
+        self.comp_to_cur_index_map[&component.get_id()]
     }
 
     pub fn connect_components(
@@ -142,9 +146,13 @@ impl Circuit {
                 Anode => terms.push((num_nodes + component_id, -1.0)),
                 Cathode => terms.push((num_nodes + component_id, 1.0)),
                 GroundConnection => terms.push((num_nodes + component_id, -1.0)),
-                Input1 => terms.push((num_nodes + component_id, -1.0)),
+                Input1 => {
+                    terms.push((num_nodes + component_id, -1.0)); // Left channel
+                    terms.push((num_nodes + component_id + 1, -1.0)); // Right channel
+                    // generalise for n-dimentional components?
+                }
                 Output1 => terms.push((num_nodes + component_id, 1.0)),
-                Output2 => terms.push((num_nodes + component_id, 1.0)),
+                Output2 => terms.push((num_nodes + component_id + 1, 1.0)), // Add offset to right channel
                 conn_type => panic!("Unimplemented connection type {conn_type:?}"),
             }
         }
@@ -176,18 +184,17 @@ impl Circuit {
         let len = self
             .components
             .iter()
-            .map(|c| c.get_currents().len())
+            .map(|c| c.get_currents())
             .sum::<usize>();
         let mut res = HashMap::with_capacity(len);
 
         let mut top_index = self.nodes.len(); // Since the first n indexes in M are the nodes and node currents
         for comp in self.components.iter() {
-            for con_type in comp.get_currents() {
-                res.insert((comp.get_id(), con_type.clone()), top_index);
-                top_index += 1;
-            }
+            res.insert(comp.get_id(), top_index);
+            top_index += comp.get_currents();
         }
 
         self.comp_to_cur_index_map = res;
+        self.total_size = top_index;
     }
 }

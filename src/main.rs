@@ -21,13 +21,17 @@ fn main() {
     let mut a: usize = 0;
     let component_id = &mut a;
 
-    let components = vec![
+    let mut components = vec![
         DCVoltageSourceComponent(DCVoltageSource::new(new_identifer(component_id), 5.0)),
         ResistorComponent(Resistor::new(new_identifer(component_id), 1000.0)),
         ResistorComponent(Resistor::new(new_identifer(component_id), 2000.0)),
         GroundComponent(Ground::new(new_identifer(component_id))),
         SwitchSPDTComponent(SwitchSPDT::new(new_identifer(component_id))),
     ];
+
+    if let SwitchSPDTComponent(s) = &mut components[4] {
+        s.toggle();  // optional switch toggle (it works!)
+    }
 
     let mut circuit = Circuit::from_components("test".to_string(), 0, components);
 
@@ -47,16 +51,19 @@ fn main() {
         ((3, GroundConnection), (0, Anode)),
     ];
     circuit.connect_components(connection_pairs);
+    circuit.lock();
 
     let mut nvm = Solver::new(circuit);
     nvm.solve().expect("Failed to solve circuit");
 
-    for i in 0..nvm.components().len() {
-        println!(
-            "Component: {}: {}A",
-            nvm.get_component(i).get_name(),
-            nvm.currents[i]
-        );
+    for (i, comp) in nvm.components().iter().enumerate() {
+        for passage in 0..comp.get_currents() {
+            println!(
+                "Component: {}.{passage}: {}A",
+                comp.get_name(),
+                nvm.currents[i + passage],
+            );
+        }
     }
     for i in 0..nvm.nodes().len() {
         println!(

@@ -83,6 +83,14 @@ impl SwitchSPDT {
         }
     }
 
+    pub fn get_unused_offset(&self) -> usize {
+        // which current channel is the unused one with current switch
+        match self.state {
+            SwitchPosition::Left => 1,
+            SwitchPosition::Right => 0,
+        }
+    }
+
     pub fn get_input_id(&self) -> usize {
         self.node_m.get_id()
     }
