@@ -3,7 +3,7 @@ use crate::components::ComponentTrait;
 use crate::components::Connection::{Connected, Disconnected};
 use crate::components::ConnectionTrait;
 use crate::components::ConnectionType;
-use crate::components::ConnectionType::{Annode, Cathode, GroundConnection};
+use crate::components::ConnectionType::{Anode, Cathode, GroundConnection};
 use crate::components::Identifer;
 use crate::components::Node;
 
@@ -126,7 +126,7 @@ impl Circuit {
             let component_id = (*connection).get_id();
             let con_type = connection.get_connection_type();
             match con_type {
-                Annode => terms.push((num_nodes + component_id, 1.0)),
+                Anode => terms.push((num_nodes + component_id, 1.0)),
                 Cathode => terms.push((num_nodes + component_id, -1.0)),
                 GroundConnection => terms.push((num_nodes + component_id, -1.0)),
                 conn_type => panic!("Unimplemented connection type {:?}", conn_type),

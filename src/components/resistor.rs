@@ -32,7 +32,7 @@ impl Resistor {
         let res = Self {
             identifer,
             resistance,
-            node1: Disconnected(Annode),
+            node1: Disconnected(Anode),
             node2: Disconnected(Cathode),
         };
         res
@@ -41,23 +41,23 @@ impl Resistor {
     pub fn connect(&mut self, connection: &Connection) {
         match *connection {
             Connected(nodeid, connection_type) => match connection_type {
-                Annode => self.node1 = Connected(nodeid, Annode),
+                Anode => self.node1 = Connected(nodeid, Anode),
                 Cathode => self.node2 = Connected(nodeid, Cathode),
-                _ => panic!("Resistor can only be connected to an Annode or Cathode"),
+                _ => panic!("Resistor can only be connected to an Anode or Cathode"),
             },
             Disconnected(con_type) => match con_type {
-                Annode => self.node1 = Disconnected(Annode),
+                Anode => self.node1 = Disconnected(Anode),
                 Cathode => self.node2 = Disconnected(Cathode),
-                _ => panic!("Resistor can only be disconnected to an Annode or Cathode"),
+                _ => panic!("Resistor can only be disconnected to an Anode or Cathode"),
             },
         };
     }
 
     pub fn get_connection(&self, connection_type: ConnectionType) -> Connection {
         match connection_type {
-            Annode => self.node1.clone(),
+            Anode => self.node1.clone(),
             Cathode => self.node2.clone(),
-            _ => panic!("Resistor only has a Annode or Cathode"),
+            _ => panic!("Resistor only has a Anode or Cathode"),
         }
     }
 

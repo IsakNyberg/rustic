@@ -51,7 +51,7 @@ pub enum Connection {
 
 #[derive(Debug, Clone, Copy)]
 pub enum ConnectionType {
-    Annode,
+    Anode,
     Cathode,
     GroundConnection,
     // Gate,

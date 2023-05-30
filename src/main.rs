@@ -5,7 +5,7 @@ mod components;
 mod solver;
 
 use circuit::Circuit;
-use components::ConnectionType::{Annode, Cathode, GroundConnection};
+use components::ConnectionType::{Anode, Cathode, GroundConnection};
 use components::*;
 use solver::Solver;
 
@@ -32,10 +32,10 @@ fn main() {
 
     // ((component_id, connection_type) (component_id, connection_type))
     let connection_pairs = vec![
-        ((0, Annode), (1, Cathode)),
-        ((1, Annode), (2, Cathode)),
+        ((0, Anode), (1, Cathode)),
+        ((1, Anode), (2, Cathode)),
         ((2, Cathode), (3, GroundConnection)),
-        ((2, Annode), (0, Cathode)),
+        ((2, Anode), (0, Cathode)),
     ];
     circuit.connect_components(connection_pairs);
 

@@ -93,7 +93,7 @@ impl Solver {
                 DCVoltageSourceComponent(dc_vs) => {
                     // V1-V2 = V
                     let mut terms = Vec::<(usize, f64)>::new();
-                    terms.push((dc_vs.annode.get_id(), 1.0));
+                    terms.push((dc_vs.anode.get_id(), 1.0));
                     terms.push((dc_vs.cathode.get_id(), -1.0));
                     b_value = dc_vs.voltage;
                     terms
