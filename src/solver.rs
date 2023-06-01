@@ -1,12 +1,10 @@
 use crate::circuit;
-use crate::components;
 use crate::components::Component;
 use crate::components::Node;
 use circuit::Circuit;
-use components::Component::*;
 
 use nalgebra::LU;
-//use nalgebra::SVD;
+// use nalgebra::QR;
 use nalgebra::{DMatrix, DVector};
 
 /*
@@ -56,123 +54,45 @@ impl Solver {
      * this method solves the circuit using the node voltage method.
      */
     pub fn solve(&mut self) -> Result<(), String> {
-        let num_unknowns = self.circuit.total_size;
-        let mut m: Vec<Vec<f64>> = Vec::with_capacity(num_unknowns);
-        let mut b: Vec<f64> = Vec::with_capacity(num_unknowns);
+        let num_unknowns = self.circuit.num_variables;
         let num_nodes = self.nodes().len();
         // fill matrix with equations for each node
         // M * x = b
 
-        // do all current equations it is always that the sum of current of a component is 0 (KCL)
-        for node_id in 0..self.circuit.nodes.len() {
-            let mut equation: Vec<f64> = vec![0.0; num_unknowns];
-            let node_terms = self.circuit.get_currents_at_node(node_id);
-            for (id, value) in node_terms {
-                equation[id] = value;
-            }
-            m.push(equation);
-            b.push(0.0);
+        let mut m = vec![0.0; num_unknowns.pow(2)];
+        let mut b = vec![0.0; num_unknowns];
+
+        // KCL
+        for (node_id, row) in m.chunks_mut(num_unknowns).enumerate().take(num_nodes) {
+            self.circuit.currents_at_node_eq(node_id, row);
         }
 
-        // do all voltage equation voltage is always the difference between two nodes (KVL)
-        for component in self.components() {
-            for channel in 0..component.get_currents() {
-                println!("component: {component:?} channel: {channel}");
-                let mut equation: Vec<f64> = vec![0.0; num_unknowns];
-                let b_value;
-                match component {
-                    ResistorComponent(resistor) => {
-                        assert_eq!(channel, 0);
-                        // V1-V2 = IR, rearranged:
-                        // V1/R - V2/R - I = 0
-                        let v1 = self.circuit.get_potential_index(resistor.node1.get_id());
-                        let v2 = self.circuit.get_potential_index(resistor.node2.get_id());
-                        let i = self.circuit.get_current_index(component);
+        // Do the component-related equations
+        // TODO make this readable
+        self.components()
+            .iter()
+            .flat_map(|c| (0..c.get_currents()).map(move |eq_id| (c, eq_id)))
+            .enumerate()
+            .zip(m.chunks_mut(num_unknowns).skip(num_nodes))
+            .for_each(|((row_id, (c, eq_id)), row)| {
+                b[num_nodes + row_id] = c.equation(num_nodes + row_id - eq_id, row, eq_id);
+            });
 
-                        let recip_resistance = resistor.resistance.recip();
-                        equation[v1] = recip_resistance;
-                        equation[v2] = -recip_resistance;
-                        equation[i] = -1.0;
-                        b_value = 0.0;
-                    }
-                    DCVoltageSourceComponent(dc_vs) => {
-                        assert_eq!(channel, 0);
-                        // V1-V2 = V
-                        let v1 = self.circuit.get_potential_index(dc_vs.anode.get_id());
-                        let v2 = self.circuit.get_potential_index(dc_vs.cathode.get_id());
-                        equation[v1] = 1.0;
-                        equation[v2] = -1.0;
-                        b_value = dc_vs.voltage;
-                    }
-                    GroundComponent(gnd) => {
-                        assert_eq!(channel, 0);
-                        // V = 0
-                        let v = self.circuit.get_potential_index(gnd.node.get_id());
-                        equation[v] = 1.0;
-                        b_value = 0.0;
-                    }
-                    DCCurrentSourceComponent(dc_cs) => {
-                        assert_eq!(channel, 0);
-                        // I = I
-                        let i = self.circuit.get_potential_index(dc_cs.get_id());
-                        equation[i] = 1.0;
-                        b_value = dc_cs.current;
-                    }
-                    SwitchSPDTComponent(switch) => {
-                        // V_in = V_out
-                        // I_unused = 0
-                        let input = switch.get_input_id();
-                        let output = switch.get_output_id();
-
-                        let vi = self.circuit.get_potential_index(input);
-                        let vo = self.circuit.get_potential_index(output);
-
-                        let i =
-                            self.circuit.get_current_index(component) + switch.get_unused_offset();
-
-                        match channel {
-                            0 => {
-                                // V_in = V_out
-                                equation[vi] = 1.0;
-                                equation[vo] = -1.0;
-                                b_value = 0.0;
-                            }
-                            1 => {
-                                // I_unused = 0
-                                equation[i] = 1.0;
-                                b_value = 0.0;
-                            }
-                            _ => unreachable!("Attempt adding more than two rows for SPDT switch"),
-                        }
-                    }
-                    _ => panic!("Unimplemented component {self:?}"),
-                }
-                m.push(equation);
-                b.push(b_value);
+        for (r, bi) in m.chunks(num_unknowns).zip(&b) {
+            for v in r {
+                print!("{v:>6} ");
             }
+            println!("   |    {bi}");
         }
-
-        // convert the matrix to an ndarray
-        let rows = m.len();
-        let cols = m[0].len();
-        let mut a_vec = vec![0.0; rows*cols];
-        a_vec.chunks_mut(cols).zip(m.iter())
-            .inspect(|(_, source)| println!("{source:?}"))
-            .for_each(|(dest, source)| dest.copy_from_slice(source));
-
-        let a = DMatrix::from_row_slice(rows, cols, &a_vec);
+        let a = DMatrix::from_row_slice(num_unknowns, num_unknowns, &m);
         let b = DVector::from_vec(b);
-        println!("A: {a:?}");
-        println!("b: {b:?}");
 
         // solve the matrix
-        //let svd = SVD::new(a, true, true);
+        // let qr = QR::new(a);
         let lu = LU::new(a);
-        println!("LU: {lu:?}");
 
-        // let x = svd.solve(&b, 1e-9).expect("Failed to solve");
+        // let x = qr.solve(&b).expect("Failed to solve the linear system");
         let x = lu.solve(&b).expect("Failed to solve the linear system");
-        println!("x: {x:?}");
 
         // set the potentials of the nodes
         for mut node in self.circuit.nodes.iter_mut() {

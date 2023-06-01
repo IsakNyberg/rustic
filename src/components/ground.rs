@@ -1,5 +1,5 @@
 use super::{
-    Connection,
+    ComponentTrait, Connection,
     Connection::*,
     ConnectionType::{self, *},
     Identifer,
@@ -26,28 +26,58 @@ impl Ground {
             node: Disconnected(GroundConnection),
         }
     }
+}
 
-    pub fn connect(&mut self, connection: &Connection) {
-        match *connection {
-            Connected(nodeid, connection_type) => match connection_type {
-                GroundConnection => self.node = Connected(nodeid, GroundConnection),
-                _ => panic!("Ground can only be connected to a GroundConnection"),
-            },
-            Disconnected(con_type) => match con_type {
-                GroundConnection => self.node = Disconnected(GroundConnection),
-                _ => panic!("Ground can only be disconnected to a GroundConnection"),
-            },
+const PANIC_TEXT: &'static str = "Ground can only has connection type GroundConnection";
+
+impl ComponentTrait for Ground {
+    fn get_id(&self) -> usize {
+        self.identifer.id
+    }
+
+    fn get_name(&self) -> String {
+        self.identifer.name.clone()
+    }
+
+    fn connect(&mut self, node_id: usize, connection_type: ConnectionType) {
+        match connection_type {
+            GroundConnection => self.node = Connected(node_id, GroundConnection),
+            _ => unreachable!("{PANIC_TEXT}"),
         };
     }
 
-    pub fn get_connection(&self, connection_type: ConnectionType) -> Connection {
+    fn disconnect(&mut self, connection_type: ConnectionType) {
+        match connection_type {
+            GroundConnection => self.node = Disconnected(GroundConnection),
+            _ => unreachable!("{PANIC_TEXT}"),
+        };
+    }
+
+    fn get_connection(&self, connection_type: ConnectionType) -> Connection {
         match connection_type {
             GroundConnection => self.node.clone(),
-            _ => panic!("Ground only has a GroundConnection"),
+            _ => unreachable!("{PANIC_TEXT}"),
         }
     }
 
-    pub fn get_id(&self) -> usize {
-        self.identifer.id
+    fn current_representative(&self, index: usize, conn_type: ConnectionType, eq: &mut [f64]) {
+        // When a node asks what current the connection provies to the node we
+        // return depending on the connection type
+        match conn_type {
+            GroundConnection => eq[index] = -1.0, // current flows out of the node
+            _ => unreachable!("{PANIC_TEXT}"),
+        }
+    }
+
+    fn num_eq(&self) -> usize {
+        1
+    }
+
+    fn equation(&self, _: usize, equation: &mut [f64], eq_id: usize) -> f64 {
+        // V = 0
+        assert!(eq_id < self.num_eq());
+        let v = self.node.get_id();
+        equation[v] = 1.0;
+        0.0
     }
 }

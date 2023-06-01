@@ -1,5 +1,5 @@
 use super::{
-    Connection,
+    ComponentTrait, Connection,
     Connection::*,
     ConnectionType::{self, *},
     Identifer,
@@ -37,31 +37,65 @@ impl DCVoltageSource {
             cathode: Disconnected(Cathode),
         }
     }
+}
 
-    pub fn connect(&mut self, connection: &Connection) {
-        match *connection {
-            Connected(nodeid, connection_type) => match connection_type {
-                Anode => self.anode = Connected(nodeid, Anode),
-                Cathode => self.cathode = Connected(nodeid, Cathode),
-                _ => panic!("DC VS can only be connected to an Anode or Cathode"),
-            },
-            Disconnected(con_type) => match con_type {
-                Anode => self.anode = Disconnected(Anode),
-                Cathode => self.cathode = Disconnected(Cathode),
-                _ => panic!("DC VS can only be disconnected to an Anode or Cathode"),
-            },
+const PANIC_TEXT: &'static str = "DC VS can only has connection type Anode or Cathode";
+
+impl ComponentTrait for DCVoltageSource {
+    fn get_id(&self) -> usize {
+        self.identifer.id
+    }
+
+    fn get_name(&self) -> String {
+        self.identifer.name.clone()
+    }
+
+    fn connect(&mut self, node_id: usize, connection_type: ConnectionType) {
+        match connection_type {
+            Anode => self.anode = Connected(node_id, Anode),
+            Cathode => self.cathode = Connected(node_id, Cathode),
+            _ => unreachable!("{PANIC_TEXT}"),
         };
     }
 
-    pub fn get_connection(&self, connection_type: ConnectionType) -> Connection {
+    fn disconnect(&mut self, connection_type: ConnectionType) {
         match connection_type {
-            Anode => self.anode.clone(),
-            Cathode => self.cathode.clone(),
-            _ => panic!("DC VS only has a Anode or Cathode"),
+            Anode => self.anode = Disconnected(Anode),
+            Cathode => self.cathode = Disconnected(Cathode),
+            _ => unreachable!("{PANIC_TEXT}"),
         }
     }
 
-    pub fn get_id(&self) -> usize {
-        self.identifer.id
+    fn get_connection(&self, connection_type: ConnectionType) -> Connection {
+        match connection_type {
+            Anode => self.anode.clone(),
+            Cathode => self.cathode.clone(),
+            _ => unreachable!("{PANIC_TEXT}"),
+        }
+    }
+
+    fn current_representative(&self, index: usize, conn_type: ConnectionType, eq: &mut [f64]) {
+        // When a node asks what current the connection provies to the node we
+        // return depending on the connection type
+        match conn_type {
+            Anode => eq[index] = -1.0,  // current flows out of the node
+            Cathode => eq[index] = 1.0, // current flows into the node
+            _ => unreachable!("{PANIC_TEXT}"),
+        }
+    }
+
+    fn num_eq(&self) -> usize {
+        1
+    }
+
+    fn equation(&self, _: usize, equation: &mut [f64], eq_id: usize) -> f64 {
+        // self.voltage + v1 = v2
+        // self.voltage = -v1 + v2
+        assert!(eq_id < self.num_eq());
+        let v1 = self.anode.get_id();
+        let v2 = self.cathode.get_id();
+        equation[v1] = -1.0;
+        equation[v2] = 1.0;
+        self.voltage
     }
 }

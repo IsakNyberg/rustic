@@ -56,17 +56,23 @@ pub enum ConnectionType {
     Anode,
     Cathode,
     GroundConnection,
-    Input1,
-    Output1,
-    Output2,
-    // Gate,
-    // Drain,
-    // Source,
-
-    // This is not meant to be used but it serves as a reminder to always have
-    // a catch all for all match statements.
-    // This should enum never appear anywhere else in the code
-    UnimplementedConnectionType,
+    Left,
+    Middle,
+    Right,
+    //
+    Input,
+    Output,
+    Pin,
+    Pin0,
+    Pin1,
+    Pin2,
+    Pin3,
+    Pin4,
+    Pin5,
+    Pin6,
+    Pin7,
+    Pin8,
+    Pin9,
 }
 
 impl Connection {
@@ -114,12 +120,16 @@ pub enum Component {
     UnimplementedComponent,
 }
 
-// pub trait ComponentTrait {
-//     fn get_id(&self) -> usize;
-//     fn get_name(&self) -> String;
-//     fn connect(&mut self, node: usize, connection_type: ConnectionType);
-//     fn get_connection(&self, connection_type: ConnectionType) -> Connection;
-// }
+pub trait ComponentTrait {
+    fn get_id(&self) -> usize;
+    fn get_name(&self) -> String;
+    fn connect(&mut self, node: usize, connection_type: ConnectionType);
+    fn disconnect(&mut self, connection_type: ConnectionType);
+    fn get_connection(&self, connection_type: ConnectionType) -> Connection;
+    fn current_representative(&self, index: usize, conn_type: ConnectionType, eq: &mut [f64]);
+    fn num_eq(&self) -> usize;
+    fn equation(&self, offset: usize, equation: &mut [f64], eq_id: usize) -> f64;
+}
 
 impl Component {
     pub const fn get_currents(&self) -> usize {
@@ -158,13 +168,12 @@ impl Component {
         }
     }
     pub fn connect(&mut self, node: usize, connection_type: ConnectionType) {
-        let connection = Connection::Connected(node, connection_type);
         match self {
-            ResistorComponent(resistor) => resistor.connect(&connection),
-            DCVoltageSourceComponent(dc_vs) => dc_vs.connect(&connection),
-            GroundComponent(ground) => ground.connect(&connection),
-            DCCurrentSourceComponent(dc_cs) => dc_cs.connect(&connection),
-            SwitchSPDTComponent(switch) => switch.connect(&connection),
+            ResistorComponent(resistor) => resistor.connect(node, connection_type),
+            DCVoltageSourceComponent(dc_vs) => dc_vs.connect(node, connection_type),
+            GroundComponent(ground) => ground.connect(node, connection_type),
+            DCCurrentSourceComponent(dc_cs) => dc_cs.connect(node, connection_type),
+            SwitchSPDTComponent(switch) => switch.connect(node, connection_type),
             _ => panic!("connect not implemented for {self:?}"),
         }
     }
@@ -177,6 +186,28 @@ impl Component {
             DCCurrentSourceComponent(dc_cs) => dc_cs.get_connection(connection_type),
             SwitchSPDTComponent(switch) => switch.get_connection(connection_type),
             _ => panic!("get_connection not implemented for {self:?}"),
+        }
+    }
+
+    pub fn equation(&self, offset: usize, equation: &mut [f64], eq_id: usize) -> f64 {
+        match self {
+            ResistorComponent(resistor) => resistor.equation(offset, equation, eq_id),
+            DCVoltageSourceComponent(dc_vs) => dc_vs.equation(offset, equation, eq_id),
+            GroundComponent(ground) => ground.equation(offset, equation, eq_id),
+            DCCurrentSourceComponent(dc_cs) => dc_cs.equation(offset, equation, eq_id),
+            SwitchSPDTComponent(switch) => switch.equation(offset, equation, eq_id),
+            _ => panic!("equation not implemented for {self:?}"),
+        }
+    }
+
+    pub fn current_representative(&self, index: usize, conn_type: ConnectionType, eq: &mut [f64]) {
+        match self {
+            ResistorComponent(resistor) => resistor.current_representative(index, conn_type, eq),
+            DCVoltageSourceComponent(dc_vs) => dc_vs.current_representative(index, conn_type, eq),
+            GroundComponent(ground) => ground.current_representative(index, conn_type, eq),
+            DCCurrentSourceComponent(dc_cs) => dc_cs.current_representative(index, conn_type, eq),
+            SwitchSPDTComponent(switch) => switch.current_representative(index, conn_type, eq),
+            _ => panic!("current_representative not implemented for {self:?}"),
         }
     }
 }

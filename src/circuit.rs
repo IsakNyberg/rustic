@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use crate::components::Component;
 use crate::components::Connection::{Connected, Disconnected};
 use crate::components::ConnectionType;
-use crate::components::ConnectionType::*;
 use crate::components::Identifer;
 use crate::components::Node;
 
@@ -18,7 +17,7 @@ pub struct Circuit {
     pub nodes: Vec<Node>,
     pub locked: bool,
     pub comp_to_cur_index_map: HashMap<usize, usize>,
-    pub total_size: usize,
+    pub num_variables: usize,
 }
 
 impl Circuit {
@@ -30,7 +29,7 @@ impl Circuit {
             nodes: Vec::new(),
             locked: false,
             comp_to_cur_index_map: HashMap::new(),
-            total_size: 0,
+            num_variables: 0,
         }
     }
 
@@ -42,7 +41,7 @@ impl Circuit {
             nodes: Vec::new(),
             locked: false,
             comp_to_cur_index_map: HashMap::new(),
-            total_size: 0,
+            num_variables: 0,
         }
     }
 
@@ -59,7 +58,7 @@ impl Circuit {
             nodes,
             locked: false,
             comp_to_cur_index_map: HashMap::new(),
-            total_size: 0,
+            num_variables: 0,
         }
     }
 
@@ -134,29 +133,19 @@ impl Circuit {
         component.connect(node_id, con_type)
     }
 
-    pub fn get_currents_at_node(&self, node_id: usize) -> Vec<(usize, f64)> {
-        let mut terms = Vec::<(usize, f64)>::new();
+    pub fn currents_at_node_eq(&self, node_id: usize, eq: &mut [f64]) {
         let node = &self.nodes[node_id];
-        let num_nodes = self.nodes.len();
+
         for connection in node.connections.iter() {
             // everything whose input is the cathode is added to the current
-            let component_id = (*connection).get_id();
-            let con_type = connection.get_connection_type();
-            match con_type {
-                Anode => terms.push((num_nodes + component_id, -1.0)),
-                Cathode => terms.push((num_nodes + component_id, 1.0)),
-                GroundConnection => terms.push((num_nodes + component_id, -1.0)),
-                Input1 => {
-                    terms.push((num_nodes + component_id, -1.0)); // Left channel
-                    terms.push((num_nodes + component_id + 1, -1.0)); // Right channel
-                    // generalise for n-dimentional components?
-                }
-                Output1 => terms.push((num_nodes + component_id, 1.0)),
-                Output2 => terms.push((num_nodes + component_id + 1, 1.0)), // Add offset to right channel
-                conn_type => panic!("Unimplemented connection type {conn_type:?}"),
-            }
+            let component_id = connection.get_id();
+            let conn_type = connection.get_connection_type();
+            self.components[component_id].current_representative(
+                self.comp_to_cur_index_map[&component_id],
+                conn_type,
+                eq,
+            );
         }
-        terms
     }
 
     pub fn get_potential(&self, node_id: usize) -> f64 {
@@ -195,6 +184,6 @@ impl Circuit {
         }
 
         self.comp_to_cur_index_map = res;
-        self.total_size = top_index;
+        self.num_variables = top_index;
     }
 }

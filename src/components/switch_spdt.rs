@@ -1,7 +1,7 @@
 use std::ops::Not;
 
 use super::{
-    Connection,
+    ComponentTrait, Connection,
     Connection::*,
     ConnectionType::{self, *},
     Identifer,
@@ -9,8 +9,8 @@ use super::{
 
 #[derive(Debug, Clone)]
 pub enum SwitchPosition {
-    Left,
-    Right,
+    LeftPosition,
+    RightPosition,
 }
 
 impl Not for SwitchPosition {
@@ -19,8 +19,8 @@ impl Not for SwitchPosition {
     fn not(self) -> Self::Output {
         use SwitchPosition::*;
         match self {
-            Left => Right,
-            Right => Left,
+            LeftPosition => RightPosition,
+            RightPosition => LeftPosition,
         }
     }
 }
@@ -39,35 +39,12 @@ impl SwitchSPDT {
     pub fn new(identifer: Identifer) -> Self {
         Self {
             identifer,
-            state: SwitchPosition::Left,
-            node_l: Connection::Disconnected(Output1),
-            node_m: Connection::Disconnected(Input1),
-            node_r: Connection::Disconnected(Output2),
+            state: SwitchPosition::LeftPosition,
+            node_l: Disconnected(Left),
+            node_m: Disconnected(Middle),
+            node_r: Disconnected(Right),
         }
     }
-
-    pub fn connect(&mut self, con: &Connection) {
-        match con {
-            Connected(_, Output1) | Disconnected(Output1) => self.node_l = *con,
-            Connected(_, Input1) | Disconnected(Input1) => self.node_m = *con,
-            Connected(_, Output2) | Disconnected(Output2) => self.node_r = *con,
-            _ => panic!("Invalid Switch connection"),
-        }
-    }
-
-    pub fn get_connection(&self, connection_type: ConnectionType) -> Connection {
-        match connection_type {
-            Output1 => self.node_l.clone(),
-            Input1 => self.node_m.clone(),
-            Output2 => self.node_r.clone(),
-            _ => panic!("Invalid Switch connection"),
-        }
-    }
-
-    pub fn get_id(&self) -> usize {
-        self.identifer.id
-    }
-
     pub fn toggle(&mut self) {
         self.state = !self.state.clone();
     }
@@ -78,20 +55,105 @@ impl SwitchSPDT {
 
     pub fn get_output_id(&self) -> usize {
         match self.state {
-            SwitchPosition::Left => self.node_l.get_id(),
-            SwitchPosition::Right => self.node_r.get_id(),
+            SwitchPosition::LeftPosition => self.node_l.get_id(),
+            SwitchPosition::RightPosition => self.node_r.get_id(),
         }
     }
 
     pub fn get_unused_offset(&self) -> usize {
         // which current channel is the unused one with current switch
         match self.state {
-            SwitchPosition::Left => 1,
-            SwitchPosition::Right => 0,
+            SwitchPosition::LeftPosition => 1,
+            SwitchPosition::RightPosition => 0,
         }
     }
 
     pub fn get_input_id(&self) -> usize {
         self.node_m.get_id()
+    }
+}
+
+const PANIC_TEXT: &'static str = "SPDT Switch can only has connection type Left Right and Middle";
+
+impl ComponentTrait for SwitchSPDT {
+    fn get_id(&self) -> usize {
+        self.identifer.id
+    }
+
+    fn get_name(&self) -> String {
+        self.identifer.name.clone()
+    }
+
+    fn connect(&mut self, node: usize, connection_type: ConnectionType) {
+        match connection_type {
+            Left => self.node_l = Connected(node, Left),
+            Middle => self.node_m = Connected(node, Middle),
+            Right => self.node_r = Connected(node, Right),
+            _ => unimplemented!("{PANIC_TEXT}"),
+        }
+    }
+
+    fn disconnect(&mut self, connection_type: ConnectionType) {
+        match connection_type {
+            Left => self.node_l = Disconnected(Left),
+            Middle => self.node_m = Disconnected(Middle),
+            Right => self.node_r = Disconnected(Right),
+            _ => unimplemented!("{PANIC_TEXT}"),
+        }
+    }
+
+    fn get_connection(&self, connection_type: ConnectionType) -> Connection {
+        match connection_type {
+            Left => self.node_l.clone(),
+            Middle => self.node_m.clone(),
+            Right => self.node_r.clone(),
+            _ => unimplemented!("{PANIC_TEXT}"),
+        }
+    }
+
+    fn current_representative(&self, index: usize, conn_type: ConnectionType, eq: &mut [f64]) {
+        // This is complex, depending on which connection that asks and the state of the switch
+        // we return different currents to the node
+        // current 0 is the current that goes middle to left
+        // current 1 is the current that goes middle to right
+        match conn_type {
+            Left => {
+                eq[index] = 1.0; // current flows out of the left "output"
+            }
+            Middle => {
+                eq[index] = -1.0; // current flows into of the left "output"
+                eq[index + 1] = -1.0; // current flows into of the right "output"
+            }
+            Right => {
+                eq[index + 1] = 1.0; // current flows out of the right "output"
+            }
+            _ => unimplemented!("{PANIC_TEXT}"),
+        }
+    }
+
+    fn num_eq(&self) -> usize {
+        2
+    }
+
+    fn equation(&self, offset: usize, equation: &mut [f64], eq_id: usize) -> f64 {
+        // This is complex, we have two equations:
+        // 1. the potential of the middle node is the same as the selected node
+        // 2. the current into the unselected node is 0
+        assert!(eq_id < self.num_eq());
+        if eq_id == 0 {
+            // Potential on each side of the switch selected is the same
+            // v0 - v1 = 0
+            let v0 = self.get_input_id();
+            let v1 = self.get_output_id();
+            equation[v0] = 1.0;
+            equation[v1] = -1.0;
+            0.0
+        } else {
+            // Current into the unselected node is 0
+            // i0 = 0
+            let i0 = self.get_unused_offset();
+            equation[offset + i0] = 1.0;
+            0.0
+        }
     }
 }

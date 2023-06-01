@@ -22,15 +22,26 @@ fn main() {
     let component_id = &mut a;
 
     let mut components = vec![
-        DCVoltageSourceComponent(DCVoltageSource::new(new_identifer(component_id), 5.0)),
+        DCVoltageSourceComponent(DCVoltageSource::new(new_identifer(component_id), 3.0)),
         ResistorComponent(Resistor::new(new_identifer(component_id), 1000.0)),
         ResistorComponent(Resistor::new(new_identifer(component_id), 2000.0)),
         GroundComponent(Ground::new(new_identifer(component_id))),
         SwitchSPDTComponent(SwitchSPDT::new(new_identifer(component_id))),
+        DCVoltageSourceComponent(DCVoltageSource::new(new_identifer(component_id), 3.0)),
+        ResistorComponent(Resistor::new(new_identifer(component_id), 10000.0)),
+        ResistorComponent(Resistor::new(new_identifer(component_id), 50000.0)),
+        SwitchSPDTComponent(SwitchSPDT::new(new_identifer(component_id))),
     ];
 
     if let SwitchSPDTComponent(s) = &mut components[4] {
-        s.toggle();  // optional switch toggle (it works!)
+        s.toggle(); // optional switch toggle (it works!)
+    } else {
+        panic!();
+    }
+    if let SwitchSPDTComponent(s) = &mut components[4 + 4] {
+        s.toggle(); // optional switch toggle (it works!)
+    } else {
+        panic!();
     }
 
     let mut circuit = Circuit::from_components("test".to_string(), 0, components);
@@ -39,16 +50,22 @@ fn main() {
     // let connection_pairs = vec![
     //     ((0, Anode), (1, Cathode)),
     //     ((1, Anode), (2, Cathode)),
-    //     ((2, Cathode), (3, GroundConnection)),
+    //     ((0, Anode), (3, GroundConnection)),
     //     ((2, Anode), (0, Cathode)),
     // ];
     let connection_pairs = vec![
         ((0, Anode), (1, Cathode)),
         ((0, Anode), (2, Cathode)),
-        ((1, Anode), (4, Output1)),
-        ((2, Anode), (4, Output2)),
-        ((4, Input1), (0, Cathode)),
+        ((1, Anode), (4, Left)),
+        ((2, Anode), (4, Right)),
+        ((4, Middle), (0, Cathode)),
         ((3, GroundConnection), (0, Anode)),
+        ((3, GroundConnection), (5, Cathode)),
+        ((0 + 5, Anode), (1 + 5, Cathode)),
+        ((0 + 5, Anode), (2 + 5, Cathode)),
+        ((1 + 5, Anode), (4 + 4, Left)),
+        ((2 + 5, Anode), (4 + 4, Right)),
+        ((4 + 4, Middle), (0 + 5, Cathode)),
     ];
     circuit.connect_components(connection_pairs);
     circuit.lock();
@@ -59,7 +76,7 @@ fn main() {
     for (i, comp) in nvm.components().iter().enumerate() {
         for passage in 0..comp.get_currents() {
             println!(
-                "Component: {}.{passage}: {}A",
+                "Component: {}.{passage}: {:.6}A",
                 comp.get_name(),
                 nvm.currents[i + passage],
             );
@@ -67,7 +84,7 @@ fn main() {
     }
     for i in 0..nvm.nodes().len() {
         println!(
-            "Node: {}: {}V",
+            "Node: {}: {:.2}V",
             nvm.get_node(i).get_name(),
             nvm.potentials[i]
         );
