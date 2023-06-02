@@ -21,28 +21,17 @@ fn main() {
     let mut a: usize = 0;
     let component_id = &mut a;
 
-    let mut components = vec![
-        DCVoltageSourceComponent(DCVoltageSource::new(new_identifer(component_id), 3.0)),
-        ResistorComponent(Resistor::new(new_identifer(component_id), 1000.0)),
-        ResistorComponent(Resistor::new(new_identifer(component_id), 2000.0)),
-        GroundComponent(Ground::new(new_identifer(component_id))),
-        SwitchSPDTComponent(SwitchSPDT::new(new_identifer(component_id))),
-        DCVoltageSourceComponent(DCVoltageSource::new(new_identifer(component_id), 3.0)),
-        ResistorComponent(Resistor::new(new_identifer(component_id), 10000.0)),
-        ResistorComponent(Resistor::new(new_identifer(component_id), 50000.0)),
-        SwitchSPDTComponent(SwitchSPDT::new(new_identifer(component_id))),
+    let components: Vec<Component> = vec![
+        Box::new(DCVoltageSource::new(new_identifer(component_id), 3.0)),
+        Box::new(Resistor::new(new_identifer(component_id), 1000.0)),
+        Box::new(Resistor::new(new_identifer(component_id), 2000.0)),
+        Box::new(Ground::new(new_identifer(component_id))),
+        Box::new(SwitchSPDT::new(new_identifer(component_id))),
+        Box::new(DCVoltageSource::new(new_identifer(component_id), 3.0)),
+        Box::new(Resistor::new(new_identifer(component_id), 10000.0)),
+        Box::new(Resistor::new(new_identifer(component_id), 50000.0)),
+        Box::new(SwitchSPDT::new(new_identifer(component_id))),
     ];
-
-    if let SwitchSPDTComponent(s) = &mut components[4] {
-        s.toggle(); // optional switch toggle (it works!)
-    } else {
-        panic!();
-    }
-    if let SwitchSPDTComponent(s) = &mut components[4 + 4] {
-        s.toggle(); // optional switch toggle (it works!)
-    } else {
-        panic!();
-    }
 
     let mut circuit = Circuit::from_components("test".to_string(), 0, components);
 
@@ -74,7 +63,7 @@ fn main() {
     nvm.solve().expect("Failed to solve circuit");
 
     for (i, comp) in nvm.components().iter().enumerate() {
-        for passage in 0..comp.get_currents() {
+        for passage in 0..comp.num_eq() {
             println!(
                 "Component: {}.{passage}: {:.6}A",
                 comp.get_name(),

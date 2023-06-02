@@ -10,7 +10,6 @@ use nalgebra::{DMatrix, DVector};
 /*
 * this struct contains the nesseday information to solve a circuit using the node voltage method.
 */
-#[derive(Debug, Clone)]
 pub struct Solver {
     pub circuit: Circuit,
     pub is_solved: bool,
@@ -71,7 +70,7 @@ impl Solver {
         // TODO make this readable
         self.components()
             .iter()
-            .flat_map(|c| (0..c.get_currents()).map(move |eq_id| (c, eq_id)))
+            .flat_map(|c| (0..c.num_eq()).map(move |eq_id| (c, eq_id)))
             .enumerate()
             .zip(m.chunks_mut(num_unknowns).skip(num_nodes))
             .for_each(|((row_id, (c, eq_id)), row)| {
