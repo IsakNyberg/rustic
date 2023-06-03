@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
-use crate::components::Component;
 use crate::components::Connection::{Connected, Disconnected};
 use crate::components::ConnectionType;
 use crate::components::Identifer;
 use crate::components::Node;
+use crate::components::{Component, ComponentTrait};
 
 /*
 * An id struct that has name, id, components, and nodes.
@@ -170,17 +170,13 @@ impl Circuit {
     pub fn calc_current_index_map(&mut self) {
         assert!(self.locked);
 
-        let len = self
-            .components
-            .iter()
-            .map(|c| c.get_currents())
-            .sum::<usize>();
+        let len = self.components.iter().map(|c| c.num_eq()).sum::<usize>();
         let mut res = HashMap::with_capacity(len);
 
         let mut top_index = self.nodes.len(); // Since the first n indexes in M are the nodes and node currents
         for comp in self.components.iter() {
             res.insert(comp.get_id(), top_index);
-            top_index += comp.get_currents();
+            top_index += comp.num_eq();
         }
 
         self.comp_to_cur_index_map = res;

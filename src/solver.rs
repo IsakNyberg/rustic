@@ -1,5 +1,6 @@
 use crate::circuit;
 use crate::components::Component;
+use crate::components::ComponentTrait;
 use crate::components::Node;
 use circuit::Circuit;
 
@@ -71,7 +72,7 @@ impl Solver {
         // TODO make this readable
         self.components()
             .iter()
-            .flat_map(|c| (0..c.get_currents()).map(move |eq_id| (c, eq_id)))
+            .flat_map(|c| (0..c.num_eq()).map(move |eq_id| (c, eq_id)))
             .enumerate()
             .zip(m.chunks_mut(num_unknowns).skip(num_nodes))
             .for_each(|((row_id, (c, eq_id)), row)| {

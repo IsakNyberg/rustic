@@ -131,23 +131,23 @@ pub trait ComponentTrait {
     fn equation(&self, offset: usize, equation: &mut [f64], eq_id: usize) -> f64;
 }
 
-impl Component {
-    pub const fn get_currents(&self) -> usize {
+impl ComponentTrait for Component {
+    fn num_eq(&self) -> usize {
         // &'static [ConnectionType] {
         // currents
         // "rank" in the matrix required to calculate component
         // use ConnectionType::*;
         match self {
-            ResistorComponent(_) => 1,        // &[Cathode],
-            DCVoltageSourceComponent(_) => 1, // &[Cathode],
-            GroundComponent(_) => 1,          // &[Cathode],
-            DCCurrentSourceComponent(_) => 1, // &[Cathode],
-            SwitchSPDTComponent(_) => 2,      // &[Output1, Output2],
-            _ => 0,                           // &[],
+            ResistorComponent(r) => r.num_eq(),                 // &[Cathode],
+            DCVoltageSourceComponent(dcvs) => dcvs.num_eq(),    // &[Cathode],
+            GroundComponent(g) => g.num_eq(),                   // &[Cathode],
+            DCCurrentSourceComponent(dccs) => dccs.num_eq(),    // &[Cathode],
+            SwitchSPDTComponent(spdt) => spdt.num_eq(),         // &[Output1, Output2],
+            _ => panic!("num_eq not implemented for {self:?}"), // &[],
         }
     }
 
-    pub fn get_id(&self) -> usize {
+    fn get_id(&self) -> usize {
         match self {
             ResistorComponent(resistor) => resistor.get_id(),
             DCVoltageSourceComponent(dc_vs) => dc_vs.get_id(),
@@ -157,7 +157,8 @@ impl Component {
             _ => panic!("get_id not implemented for {self:?}"),
         }
     }
-    pub fn get_name(&self) -> String {
+
+    fn get_name(&self) -> String {
         match self {
             ResistorComponent(resistor) => resistor.identifer.name.clone(),
             DCVoltageSourceComponent(dc_vs) => dc_vs.identifer.name.clone(),
@@ -167,7 +168,8 @@ impl Component {
             _ => panic!("get_name not implemented for {self:?}"),
         }
     }
-    pub fn connect(&mut self, node: usize, connection_type: ConnectionType) {
+
+    fn connect(&mut self, node: usize, connection_type: ConnectionType) {
         match self {
             ResistorComponent(resistor) => resistor.connect(node, connection_type),
             DCVoltageSourceComponent(dc_vs) => dc_vs.connect(node, connection_type),
@@ -178,7 +180,7 @@ impl Component {
         }
     }
 
-    pub fn get_connection(&self, connection_type: ConnectionType) -> Connection {
+    fn get_connection(&self, connection_type: ConnectionType) -> Connection {
         match self {
             ResistorComponent(resistor) => resistor.get_connection(connection_type),
             DCVoltageSourceComponent(dc_vs) => dc_vs.get_connection(connection_type),
@@ -189,7 +191,7 @@ impl Component {
         }
     }
 
-    pub fn equation(&self, offset: usize, equation: &mut [f64], eq_id: usize) -> f64 {
+    fn equation(&self, offset: usize, equation: &mut [f64], eq_id: usize) -> f64 {
         match self {
             ResistorComponent(resistor) => resistor.equation(offset, equation, eq_id),
             DCVoltageSourceComponent(dc_vs) => dc_vs.equation(offset, equation, eq_id),
@@ -200,7 +202,7 @@ impl Component {
         }
     }
 
-    pub fn current_representative(&self, index: usize, conn_type: ConnectionType, eq: &mut [f64]) {
+    fn current_representative(&self, index: usize, conn_type: ConnectionType, eq: &mut [f64]) {
         match self {
             ResistorComponent(resistor) => resistor.current_representative(index, conn_type, eq),
             DCVoltageSourceComponent(dc_vs) => dc_vs.current_representative(index, conn_type, eq),
@@ -208,6 +210,17 @@ impl Component {
             DCCurrentSourceComponent(dc_cs) => dc_cs.current_representative(index, conn_type, eq),
             SwitchSPDTComponent(switch) => switch.current_representative(index, conn_type, eq),
             _ => panic!("current_representative not implemented for {self:?}"),
+        }
+    }
+
+    fn disconnect(&mut self, connection_type: ConnectionType) {
+        match self {
+            ResistorComponent(r) => r.disconnect(connection_type),
+            DCVoltageSourceComponent(dcvs) => dcvs.disconnect(connection_type),
+            GroundComponent(g) => g.disconnect(connection_type),
+            DCCurrentSourceComponent(dccs) => dccs.disconnect(connection_type),
+            SwitchSPDTComponent(spdt) => spdt.disconnect(connection_type),
+            _ => panic!("disconnect not implemented for {self:?}"),
         }
     }
 }

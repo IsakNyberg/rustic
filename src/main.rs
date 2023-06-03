@@ -74,7 +74,7 @@ fn main() {
     nvm.solve().expect("Failed to solve circuit");
 
     for (i, comp) in nvm.components().iter().enumerate() {
-        for passage in 0..comp.get_currents() {
+        for passage in 0..comp.num_eq() {
             println!(
                 "Component: {}.{passage}: {:.6}A",
                 comp.get_name(),
